@@ -3,23 +3,25 @@
 import argparse
 
 import mlflow
-from azure.ai.ml import MLClient
-from azure.identity import DefaultAzureCredential
 from azureml.core import Dataset, Datastore, Workspace
+from azureml.core.authentication import ServicePrincipalAuthentication
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
 subscription_id = '3ccb9182-11da-487f-9b4f-be7e2fcfd5d3'
 resource_group = 'aml'
 workspace_name = 'smws001'
-experiment_name = 'sm/diabetes_improvements'
+experiment_name = 'sm_diabetes_improvements'
 
 # Output of: az ml workspace show --query mlflow_tracking_uri -g aml -n smws001
 mlflow_tracking_uri = 'azureml://centralindia.api.azureml.ms/mlflow/v1.0/subscriptions/3ccb9182-11da-487f-9b4f-be7e2fcfd5d3/resourceGroups/aml/providers/Microsoft.MachineLearningServices/workspaces/smws001'
 mlflow.set_tracking_uri(mlflow_tracking_uri)
 mlflow.set_experiment(experiment_name)
 mlflow.autolog()
-workspace = Workspace(subscription_id, resource_group, workspace_name)
+workspace = Workspace(subscription_id, resource_group, workspace_name,
+                      auth=ServicePrincipalAuthentication(tenant_id='305f1b09-dfce-4875-8ae1-287c94373798',
+                                                          service_principal_id='7e35756d-5c6b-479e-8d7c-97b15c751b8c',
+                                                          service_principal_password='TODO'))
 
 
 def main(args):
@@ -58,6 +60,7 @@ def parse_args():
 
 
 # run script
+# Sample args: --data_store_name diabetes --data_path 1_0_0 --reg_rate 0.001
 if __name__ == "__main__":
     # add space in logs
     print("\n\n")

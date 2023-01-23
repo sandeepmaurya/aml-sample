@@ -1,15 +1,15 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
 code: model
 command: >-
-  python 
-  --
-  --
+  python train.py
+  --data_store_name ${{inputs.data_store_name}} 
+  --data_path ${{inputs.data_path}} 
+  --reg_rate ${{inputs.reg_rate}}
 inputs:
-  training_data: 
-    type: uri_folder 
-    path: 
+  data_store_name: 'diabetes'
+  data_path: '1_0_0'
   reg_rate: 0.01
-environment: azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest
-compute: 
-experiment_name: 
-description: 
+environment: azureml:sm_py3_9_13_sklearn1_0_2@latest
+compute: smws001cluster
+experiment_name: sm_diabetes_improvements
+description: Train a scikit-learn LogisticRegression on the diabetes dataset.
