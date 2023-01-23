@@ -10,6 +10,8 @@ inputs:
   data_path: '1_0_0'
   reg_rate: 0.01
 environment: azureml:sm_py3_9_13_sklearn1_0_2@latest
+environment_variables:
+  CLIENT_SECRET: 'TODO'
 compute: smws001cluster
 experiment_name: sm_diabetes_improvements
 description: Train a scikit-learn LogisticRegression on the diabetes dataset.

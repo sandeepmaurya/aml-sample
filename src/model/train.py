@@ -1,6 +1,7 @@
 # Import libraries
 
 import argparse
+import os
 
 import mlflow
 from azureml.core import Dataset, Datastore, Workspace
@@ -18,10 +19,13 @@ mlflow_tracking_uri = 'azureml://centralindia.api.azureml.ms/mlflow/v1.0/subscri
 mlflow.set_tracking_uri(mlflow_tracking_uri)
 mlflow.set_experiment(experiment_name)
 mlflow.autolog()
+
+service_principal_password = os.environ['CLIENT_SECRET']
+
 workspace = Workspace(subscription_id, resource_group, workspace_name,
                       auth=ServicePrincipalAuthentication(tenant_id='305f1b09-dfce-4875-8ae1-287c94373798',
                                                           service_principal_id='7e35756d-5c6b-479e-8d7c-97b15c751b8c',
-                                                          service_principal_password='TODO'))
+                                                          service_principal_password=service_principal_password))
 
 
 def main(args):
