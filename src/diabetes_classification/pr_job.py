@@ -20,11 +20,11 @@ ml_client = MLClient(
 
 command_job = command(
     code='.',
-    command='python evaluate.py --data_path ${{inputs.data_path}}',
+    command='python src/diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
     inputs={
         'data_path': '1_0_0',
     },
-    environment='sm_py3_9_13_sklearn1_0_2@latest',
+    environment='diabetes_1_0_0@latest',
     environment_variables={'CLIENT_SECRET': client_secret},
     compute='smws001cluster',
     experiment_name=experiment_name,
