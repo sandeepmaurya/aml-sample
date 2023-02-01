@@ -20,7 +20,7 @@ ml_client = MLClient(
 
 command_job = command(
     code='.',
-    command='python evaluate.py --data_path ${{inputs.data_path}}',
+    command='python src/diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
     inputs={
         'data_path': '1_0_0',
     },
