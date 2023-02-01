@@ -3,7 +3,9 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'echo hello'
+                withCredentials([string(credentialsId: 'AML_CLIENT_SECRET', variable: 'CLIENT_SECRET')]) {
+                    sh 'python pr_job.py'
+                }
             }
         }
     }
