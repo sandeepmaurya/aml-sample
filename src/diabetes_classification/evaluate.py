@@ -1,17 +1,20 @@
-from sklearn.metrics import roc_curve
-import matplotlib.pyplot as plt
 import argparse
 import os
-import train
+
+import matplotlib.pyplot as plt
+import mlflow
 from azureml.core import Dataset, Datastore, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+from sklearn.metrics import f1_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
-from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve
+from sklearn.model_selection import train_test_split
+
+import train
 
 
 def load_data(data_path):
@@ -66,7 +69,8 @@ def plot_roc(X_test, model, y_test):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC Curve')
-    plt.show()
+    plt.savefig("ROC-Curve.png")
+    mlflow.log_artifact("ROC-Curve.png")
 
 
 def log_metrics(model, X_test, y_test):
@@ -78,11 +82,11 @@ def log_metrics(model, X_test, y_test):
     f1 = f1_score(y_test, y_pred)
     auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
     print(report)
-    print(f'Accuracy: {acc}')
-    print(f'Precision: {precision}')
-    print(f'Recall: {recall}')
-    print(f'F1: {f1}')
-    print(f'ROC AUC: {auc}')
+    mlflow.log_metric("Accuracy", acc)
+    mlflow.log_metric("Precision", precision)
+    mlflow.log_metric("Recall", recall)
+    mlflow.log_metric("F1", f1)
+    mlflow.log_metric("ROC AUC", auc)
 
 
 # CLIENT_SECRET=xxxx python3 evaluate.py --data_path 1_0_0
