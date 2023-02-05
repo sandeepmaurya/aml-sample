@@ -15,6 +15,7 @@ from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split
 
 import train
+from model_wrapper import ModelWrapper
 
 
 def load_data(data_path):
@@ -53,7 +54,14 @@ def main(args):
     X, y = df[['Pregnancies', 'PlasmaGlucose', 'DiastolicBloodPressure', 'TricepsThickness', 'SerumInsulin', 'BMI',
                'DiabetesPedigree', 'Age']].values, df['Diabetic'].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=42)
+
     model = train.train_model(X_train, y_train)
+
+    # Log model, metrics.
+    mlflow.pyfunc.log_model(
+        artifact_path='model',
+        python_model=ModelWrapper(model)
+    )
 
     log_metrics(model, X_test, y_test)
     plot_roc(X_test, model, y_test)
@@ -61,7 +69,7 @@ def main(args):
 
 def plot_roc(X_test, model, y_test):
     fpr, tpr, thresholds = roc_curve(y_test, model.predict_proba(X_test)[:, 1])
-    fig = plt.figure(figsize=(6, 4))
+    plt.figure(figsize=(6, 4))
     # Plot the diagonal 50% line
     plt.plot([0, 1], [0, 1], 'k--')
     # Plot the FPR and TPR achieved by our model
