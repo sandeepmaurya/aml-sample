@@ -25,7 +25,7 @@ command_job = command(
     code='.',
     command='python src/diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
     inputs={
-        'data_path': '1_0_0',
+        'data_path': 'dev_1_0_0',
     },
     environment='diabetes_1_0_0@latest',
     environment_variables={'CLIENT_SECRET': client_secret},
