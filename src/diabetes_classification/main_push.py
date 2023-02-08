@@ -1,13 +1,17 @@
 import os
 from time import sleep
 
+import numpy as np
 from azure.ai.ml import MLClient, command
 from azure.ai.ml.constants import AssetTypes
-from azure.ai.ml.entities import ManagedOnlineDeployment, CodeConfiguration, Environment
+from azure.ai.ml.entities import ManagedOnlineDeployment, CodeConfiguration
 from azure.ai.ml.entities import ManagedOnlineEndpoint
 from azure.ai.ml.entities import Model
 from azureml.core import Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
+from sklearn.metrics import classification_report
+
+import utils
 
 subscription_id = '3ccb9182-11da-487f-9b4f-be7e2fcfd5d3'
 resource_group = 'aml'
@@ -31,9 +35,9 @@ command_job = command(
     code='.',
     command='python src/diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
     inputs={
-        'data_path': 'test_1_0_0',
+        'data_path': 'dev_1_0_0',
     },
-    environment='diabetes_1_0_0@latest',
+    environment='diabetes_1_0_1@latest',
     environment_variables={'CLIENT_SECRET': client_secret},
     compute='smws001cluster',
     experiment_name=experiment_name,
@@ -103,9 +107,8 @@ default_deployment = ManagedOnlineDeployment(
     name='default',
     endpoint_name=dev_endpoint_name,
     model=registered_model,
-    environment=Environment(
-        image='mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest',
-        conda_file='src/diabetes_classification/inferencing_conda.yml'),
+    environment='diabetes_1_0_1@latest',
+    environment_variables={'CLIENT_SECRET': client_secret},
     code_configuration=CodeConfiguration(
         code="src/diabetes_classification", scoring_script="score.py"
     ),
@@ -121,6 +124,14 @@ dev_endpoint.traffic = {"default": 100}
 poller = ml_client.online_endpoints.begin_create_or_update(dev_endpoint)
 wait_for_completion(poller)
 
-# Run inferencing against test data
+# Inference against the test data.
+print('\nInferencing against test data on dev deployment...')
+df = utils.load_data('test_1_0_0')
+X, y = df[['Pregnancies', 'PlasmaGlucose', 'DiastolicBloodPressure', 'TricepsThickness', 'SerumInsulin', 'BMI',
+           'DiabetesPedigree', 'Age']].values, df['Diabetic'].values
+scoring_uri = ml_client.online_endpoints.get(dev_endpoint_name).scoring_uri
+primary_key = ml_client.online_endpoints.get_keys(dev_endpoint_name).primary_key
+response_json = utils.invokeEndpoint(url=scoring_uri, api_key=primary_key, data=X)
+y_pred = np.array(response_json)
 
-# If current model accuracy > prod accuracy, deploy to Stage endpoint
+print(classification_report(y, y_pred))
