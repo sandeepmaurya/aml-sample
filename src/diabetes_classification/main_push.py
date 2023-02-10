@@ -4,12 +4,11 @@ from time import sleep
 import numpy as np
 from azure.ai.ml import MLClient, command
 from azure.ai.ml.constants import AssetTypes
-from azure.ai.ml.entities import ManagedOnlineDeployment, CodeConfiguration
-from azure.ai.ml.entities import ManagedOnlineEndpoint
 from azure.ai.ml.entities import Model
 from azureml.core import Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from sklearn.metrics import classification_report
+from sklearn.metrics import f1_score
 
 import utils
 
@@ -76,53 +75,10 @@ run_model = Model(
 registered_model = ml_client.models.create_or_update(run_model)
 print(f'Registered model:\n{registered_model}')
 
-
-def wait_for_completion(poller):
-    while poller.status() not in ('Succeeded', 'Failed'):
-        print(f'Status: {poller.status()}')
-        sleep(10)
-    print(f'Status: {poller.status()}')
-
-
-# Create dev endpoint if needed.
-print('\nCreating dev endpoint if not exists...')
+# Deploy to dev env.
+print('\nDeploying model to dev env. ...')
 dev_endpoint_name = 'diabetes-classification-dev'
-dev_endpoint = None
-try:
-    dev_endpoint = ml_client.online_endpoints.get(dev_endpoint_name)
-except:
-    dev_endpoint = ManagedOnlineEndpoint(
-        name=dev_endpoint_name,
-        description="Diabetes classification - Dev endpoint.",
-        auth_mode="key",
-        tags={"env": "dev"},
-    )
-    poller = ml_client.online_endpoints.begin_create_or_update(dev_endpoint)
-    wait_for_completion(poller)
-
-# Refresh the dev endpoint with newly created model.
-# The inferencing conda env. has few more dependencies than the one we used for training.
-print('\nRefreshing default dev deployment...')
-default_deployment = ManagedOnlineDeployment(
-    name='default',
-    endpoint_name=dev_endpoint_name,
-    model=registered_model,
-    environment='diabetes_1_0_1@latest',
-    environment_variables={'CLIENT_SECRET': client_secret},
-    code_configuration=CodeConfiguration(
-        code="src/diabetes_classification", scoring_script="score.py"
-    ),
-    instance_type="Standard_E2s_v3",
-    instance_count=1,
-)
-poller = ml_client.online_deployments.begin_create_or_update(default_deployment)
-wait_for_completion(poller)
-
-# Route all inferencing traffic to this deployment.
-print('\nRouting all traffic to default dev deployment...')
-dev_endpoint.traffic = {"default": 100}
-poller = ml_client.online_endpoints.begin_create_or_update(dev_endpoint)
-wait_for_completion(poller)
+utils.deploy_model(ml_client, client_secret, 'dev', dev_endpoint_name, registered_model)
 
 # Inference against the test data.
 print('\nInferencing against test data on dev deployment...')
@@ -131,7 +87,31 @@ X, y = df[['Pregnancies', 'PlasmaGlucose', 'DiastolicBloodPressure', 'TricepsThi
            'DiabetesPedigree', 'Age']].values, df['Diabetic'].values
 scoring_uri = ml_client.online_endpoints.get(dev_endpoint_name).scoring_uri
 primary_key = ml_client.online_endpoints.get_keys(dev_endpoint_name).primary_key
-response_json = utils.invokeEndpoint(url=scoring_uri, api_key=primary_key, data=X)
+response_json = utils.invoke_endpoint(url=scoring_uri, api_key=primary_key, data=X)
 y_pred = np.array(response_json)
+f1 = f1_score(y, y_pred)
+print(f'f1_score: {f1}')
+print(f'\nclassification report:\n{classification_report(y, y_pred)}')
 
-print(classification_report(y, y_pred))
+# Update model tags with metrics from test data.
+registered_model.tags = {"f1_score": f1}
+ml_client.models.create_or_update(registered_model)
+
+# Deploy to stage if prod deployment does not exist
+# OR Current model is better than prod model
+stage_endpoint_name = 'diabetes-classification-stage'
+prod_endpoint_name = 'diabetes-classification-prod'
+is_prod_endpoint_exists = utils.is_endpoint_exists(ml_client, prod_endpoint_name)
+if is_prod_endpoint_exists:
+    print('Comparing current model f1 with prod model...')
+    prod_deployment = ml_client.online_deployments.get(name='default', endpoint_name=prod_endpoint_name)
+    prod_f1 = np.float64(prod_deployment.tags['f1_score'])
+    print(f'Prod f1: {prod_f1}, current f1: {f1}')
+    if f1 > prod_f1:
+        print(f'Current f1 is better than prod. Deploying current model to stage...')
+        utils.deploy_model(ml_client, client_secret, 'stage', stage_endpoint_name, registered_model)
+    else:
+        print(f'Current f1 is not better than prod. Skipped stage deployment.')
+else:
+    print(f'Prod deployment not found. Deploying current model to stage...')
+    utils.deploy_model(ml_client, client_secret, 'stage', stage_endpoint_name, registered_model)
