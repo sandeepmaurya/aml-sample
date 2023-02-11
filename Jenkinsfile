@@ -8,7 +8,7 @@ pipeline {
 
             steps {
                 withCredentials([string(credentialsId: 'AML_CLIENT_SECRET', variable: 'CLIENT_SECRET')]) {
-                    sh '/Users/sandeepmaurya/opt/anaconda3/bin/python3 src/diabetes_classification/pr_push.py'
+                    sh '/Users/sandeepmaurya/opt/anaconda3/bin/python3 diabetes_classification/pr_push.py'
                 }
             }
         }
@@ -19,7 +19,7 @@ pipeline {
 
             steps {
                 withCredentials([string(credentialsId: 'AML_CLIENT_SECRET', variable: 'CLIENT_SECRET')]) {
-                    sh '/Users/sandeepmaurya/opt/anaconda3/bin/python3 src/diabetes_classification/main_push.py'
+                    sh '/Users/sandeepmaurya/opt/anaconda3/bin/python3 diabetes_classification/main_push.py'
                 }
             }
         }

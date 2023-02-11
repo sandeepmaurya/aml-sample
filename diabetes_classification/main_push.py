@@ -32,7 +32,7 @@ workspace = Workspace(subscription_id, resource_group, workspace_name, auth)
 print('Running new experiment...')
 command_job = command(
     code='.',
-    command='python src/diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
+    command='python diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
     inputs={
         'data_path': 'dev_1_0_0',
     },

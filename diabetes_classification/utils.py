@@ -93,7 +93,7 @@ def deploy_model(ml_client, client_secret, env_name, endpoint_name, model):
         environment='diabetes_1_0_1@latest',
         environment_variables={'CLIENT_SECRET': client_secret},
         code_configuration=CodeConfiguration(
-            code="src/diabetes_classification", scoring_script="score.py"
+            code="diabetes_classification", scoring_script="score.py"
         ),
         instance_type="Standard_F2s_v2",
         instance_count=1,
