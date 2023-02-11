@@ -4,10 +4,17 @@ import ssl
 import urllib.request
 from time import sleep
 
+from azure.ai.ml import MLClient
 from azure.ai.ml.entities import ManagedOnlineEndpoint, ManagedOnlineDeployment, CodeConfiguration
 from azure.core.exceptions import ResourceNotFoundError
 from azureml.core import Dataset, Datastore, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
+
+tenant_id = '305f1b09-dfce-4875-8ae1-287c94373798'
+client_id = '7e35756d-5c6b-479e-8d7c-97b15c751b8c'
+subscription_id = '3ccb9182-11da-487f-9b4f-be7e2fcfd5d3'
+resource_group = 'aml'
+workspace_name = 'smws001'
 
 
 def load_data(data_path):
@@ -27,9 +34,14 @@ def get_aml_workspace(auth):
     return workspace
 
 
+def get_ml_client():
+    auth = get_service_principal_auth()
+    return MLClient(
+        auth, subscription_id, resource_group, workspace_name
+    )
+
+
 def get_service_principal_auth():
-    tenant_id = '305f1b09-dfce-4875-8ae1-287c94373798'
-    client_id = '7e35756d-5c6b-479e-8d7c-97b15c751b8c'
     client_secret = os.environ['CLIENT_SECRET']
     auth = ServicePrincipalAuthentication(tenant_id, client_id, client_secret)
     return auth
