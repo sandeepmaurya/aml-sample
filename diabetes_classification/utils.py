@@ -4,7 +4,7 @@ import ssl
 import urllib.request
 from time import sleep
 
-from azure.ai.ml import MLClient
+from azure.ai.ml import MLClient, command
 from azure.ai.ml.entities import ManagedOnlineEndpoint, ManagedOnlineDeployment, CodeConfiguration
 from azure.core.exceptions import ResourceNotFoundError
 from azureml.core import Dataset, Datastore, Workspace
@@ -41,8 +41,12 @@ def get_ml_client():
     )
 
 
+def get_client_secret():
+    return os.environ['CLIENT_SECRET']
+
+
 def get_service_principal_auth():
-    client_secret = os.environ['CLIENT_SECRET']
+    client_secret = get_client_secret()
     auth = ServicePrincipalAuthentication(tenant_id, client_id, client_secret)
     return auth
 
@@ -119,3 +123,43 @@ def invoke_endpoint(url, api_key, data):
     req = urllib.request.Request(url, body, headers)
     response = urllib.request.urlopen(req)
     return json.load(response)
+
+
+def run_experiment():
+    experiment_name = 'diabetes_classification'
+    client_secret = get_client_secret()
+    auth = get_service_principal_auth()
+    workspace = Workspace(subscription_id, resource_group, workspace_name, auth)
+    command_job = command(
+        code='.',
+        command='python diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
+        inputs={
+            'data_path': 'dev_1_0_0',
+        },
+        environment='diabetes_1_0_1@latest',
+        environment_variables={'CLIENT_SECRET': client_secret},
+        compute='smws001cluster',
+        experiment_name=experiment_name,
+        description='Train a scikit-learn LogisticRegression on the diabetes dataset.'
+    )
+
+    ml_client = get_ml_client()
+    experiment_job = ml_client.jobs.create_or_update(command_job)
+    print(f'Studio endpoint: {experiment_job.services["Studio"].endpoint}')
+    print(f'Started run: {experiment_job.name}')
+
+    # Wait for the run to finish
+    sleep(30)
+    run_status = 'None'
+    run = None
+    while run_status not in ('Completed', 'Failed', 'Canceled'):
+        # Fetch the runs every time we want to check status. Otherwise, status is not refreshed.
+        runs = workspace.experiments.get(experiment_name).get_runs()
+        run = next(r for r in runs if r.get_details()['runId'] == experiment_job.name)
+        run_status = run.status
+        print(f'Run Status: {run_status}')
+        if run_status not in ('Completed', 'Failed', 'Canceled'):
+            sleep(30)
+    print(f'Run Status: {run_status}')
+
+    return run
