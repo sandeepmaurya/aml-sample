@@ -1,8 +1,7 @@
 import os
-from time import sleep
 
 import numpy as np
-from azure.ai.ml import MLClient, command
+from azure.ai.ml import MLClient
 from azure.ai.ml.constants import AssetTypes
 from azure.ai.ml.entities import Model
 from azureml.core import Workspace
@@ -29,49 +28,20 @@ ml_client = MLClient(
 workspace = Workspace(subscription_id, resource_group, workspace_name, auth)
 
 # Run Experiment.
-print('Running new experiment...')
-command_job = command(
-    code='.',
-    command='python diabetes_classification/evaluate.py --data_path ${{inputs.data_path}}',
-    inputs={
-        'data_path': 'dev_1_0_0',
-    },
-    environment='diabetes_1_0_1@latest',
-    environment_variables={'CLIENT_SECRET': client_secret},
-    compute='smws001cluster',
-    experiment_name=experiment_name,
-    description='Train a scikit-learn LogisticRegression on the diabetes dataset.'
-)
-
-experiment_job = ml_client.jobs.create_or_update(command_job)
-print(f'Studio endpoint: {experiment_job.services["Studio"].endpoint}')
-print(f'Started run: {experiment_job.name}')
-
-# Wait for the experiment run to finish.
-sleep(30)
-run_status = 'None'
-run = None
-while run_status not in ('Completed', 'Failed', 'Canceled'):
-    # Fetch the runs every time we want to check status. Otherwise, status is not refreshed.
-    runs = workspace.experiments.get(experiment_name).get_runs()
-    run = next(r for r in runs if r.get_details()['runId'] == experiment_job.name)
-    run_status = run.status
-    print(f'Run Status: {run_status}')
-    if run_status not in ('Completed', 'Failed', 'Canceled'):
-        sleep(15)
-print(f'Run Status: {run_status}')
+print('\nTraining the model on dev dataset...')
+run = utils.run_experiment()
+run_details = run.get_details()
+run_name = run_details['runId']
+print(f'Finished experiment run: {run_name}')
 
 # Register the output model as a new candidate in registry.
 print('\nRegistering run output in registry...')
-job_name = experiment_job.name
-
 run_model = Model(
-    path=f"azureml://jobs/{job_name}/outputs/artifacts/paths/model/",
+    path=f"azureml://jobs/{run_name}/outputs/artifacts/paths/model/",
     name="diabetes_classification",
     description="Model created from run.",
     type=AssetTypes.MLFLOW_MODEL,
 )
-
 registered_model = ml_client.models.create_or_update(run_model)
 print(f'Registered model:\n{registered_model}')
 
