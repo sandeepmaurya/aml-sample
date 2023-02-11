@@ -1,14 +1,16 @@
 pipeline {
-    parameters { string(name: 'PROD_ENDPOINT_NAME', defaultValue: 'diabetes-classification-prod') }
-    parameters { string(name: 'MODEL_NAME', defaultValue: 'diabetes_classification') }
-    parameters { string(name: 'MODEL_VERSION', defaultValue: '11') }
+    parameters {
+        string(name: 'PROD_ENDPOINT_NAME', defaultValue: 'diabetes-classification-prod')
+        string(name: 'MODEL_NAME', defaultValue: 'diabetes_classification')
+        string(name: 'MODEL_VERSION', defaultValue: '11')
+    }
 
     agent any
     stages {
         stage('Prod Deploy') {
             steps {
                 withCredentials([string(credentialsId: 'AML_CLIENT_SECRET', variable: 'CLIENT_SECRET')]) {
-                    sh '/Users/sandeepmaurya/opt/anaconda3/bin/python3 src/diabetes_classification/prod_deploy.py'
+                    sh '/Users/sandeepmaurya/opt/anaconda3/bin/python3 src/diabetes_classification/prod_deploy.py --prod_endpoint_name $PROD_ENDPOINT_NAME --model_name $MODEL_NAME --model_version $MODEL_VERSION'
                 }
             }
         }
